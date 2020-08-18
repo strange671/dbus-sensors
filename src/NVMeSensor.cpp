@@ -18,6 +18,8 @@
 
 #include "NVMeDevice.hpp"
 
+#include "smbus.hpp"
+
 #include <crc32c.h>
 #include <libmctp-smbus.h>
 
@@ -25,6 +27,7 @@
 #include <boost/asio/ip/tcp.hpp>
 
 #include <iostream>
+#include <mutex>
 
 static constexpr double maxReading = 127;
 static constexpr double minReading = 0;
@@ -111,6 +114,78 @@ void init()
 }
 
 } // namespace nvmeMCTP
+
+namespace smbus
+{
+
+std::mutex gMutex;
+
+int smbus::Smbus::smbusInit(int smbus_num)
+{
+    int res = 0;
+    char filename[20];
+
+    gMutex.lock();
+
+    fd[smbus_num] = open_i2c_dev(smbus_num, filename, sizeof(filename), 0);
+    if (fd[smbus_num] < 0)
+    {
+        gMutex.unlock();
+
+        return -1;
+    }
+
+    res = fd[smbus_num];
+
+    gMutex.unlock();
+
+    return res;
+}
+
+int smbus::Smbus::open_i2c_dev(int i2cbus, char* filename,
+                               size_t size, int quiet)
+{
+    int file;
+
+    snprintf(filename, size, "/dev/i2c/%d", i2cbus);
+    filename[size - 1] = '\0';
+    file = open(filename, O_RDWR);
+
+    if (file < 0 && (errno == ENOENT || errno == ENOTDIR))
+    {
+        sprintf(filename, "/dev/i2c-%d", i2cbus);
+        file = open(filename, O_RDWR);
+    }
+
+    if (file < 0 && !quiet)
+    {
+        if (errno == ENOENT)
+        {
+            fprintf(stderr,
+                    "Error: Could not open file "
+                    "`/dev/i2c-%d' or `/dev/i2c/%d': %s\n",
+                    i2cbus, i2cbus, strerror(ENOENT));
+        }
+        else
+        {
+            fprintf(stderr,
+                    "Error: Could not open file "
+                    "`%s': %s\n",
+                    filename, strerror(errno));
+            if (errno == EACCES)
+                fprintf(stderr, "Run as root?\n");
+        }
+    }
+
+    return file;
+}
+
+void smbus::Smbus::smbusClose(int smbus_num)
+{
+    close(fd[smbus_num]);
+}
+
+} // namespace smbus
 
 static int lastQueriedDeviceIndex = -1;
 
