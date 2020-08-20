@@ -116,6 +116,8 @@ void init()
     mctp_set_rx_all(mctp, rxMessage, nullptr);
 }
 
+} // namespace nvmeMCTP
+
 static int lastQueriedDeviceIndex = -1;
 
 void readResponse(const std::shared_ptr<NVMeContext>& nvmeDevice)
