@@ -15,7 +15,6 @@
 */
 
 #include "NVMeSensor.hpp"
-#include <i2c/smbus.h>
 
 #include <boost/asio/deadline_timer.hpp>
 
@@ -154,6 +153,7 @@ int main()
     systemBus->request_name("xyz.openbmc_project.NVMeSensor");
     sdbusplus::asio::object_server objectServer(systemBus);
     nvmeMCTP::init();
+    phosphor::smbus::Smbus::smbusInit(int smbus_num);
 
     io.post([&]() { createSensors(io, objectServer, systemBus); });
 

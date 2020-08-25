@@ -141,16 +141,26 @@ int phosphor::smbus::Smbus::open_i2c_dev(int i2cbus, char *filename, size_t size
         file = open(filename, O_RDWR);
     }
 
-    if (file < 0 && !quiet) {
-        if (errno == ENOENT) {
-            fprintf(stderr, "Error: Could not open file "
-                "`/dev/i2c-%d' or `/dev/i2c/%d': %s\n",
-                i2cbus, i2cbus, strerror(ENOENT));
-        } else {
-            fprintf(stderr, "Error: Could not open file "
-                "`%s': %s\n", filename, strerror(errno));
-            if (errno == EACCES)
-                fprintf(stderr, "Run as root?\n");
+    if (DEBUG)
+    {
+        if (file < 0 && !quiet)
+        {
+            if (errno == ENOENT)
+            {
+                fprintf(stderr,
+                        "Error: Could not open file "
+                        "`/dev/i2c-%d' or `/dev/i2c/%d': %s\n",
+                        i2cbus, i2cbus, strerror(ENOENT));
+            }
+            else
+            {
+                fprintf(stderr,
+                        "Error: Could not open file "
+                        "`%s': %s\n",
+                        filename, strerror(errno));
+                if (errno == EACCES)
+                    fprintf(stderr, "Run as root?\n");
+            }
         }
     }
 
