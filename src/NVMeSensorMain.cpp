@@ -153,7 +153,7 @@ int main()
     systemBus->request_name("xyz.openbmc_project.NVMeSensor");
     sdbusplus::asio::object_server objectServer(systemBus);
     nvmeMCTP::init();
-    phosphor::smbus::Smbus::smbusInit(int smbus_num);
+    phosphor::smbus::Smbus::smbusInit(0); // test the smbusInit
 
     io.post([&]() { createSensors(io, objectServer, systemBus); });
 
