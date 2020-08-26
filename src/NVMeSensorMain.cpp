@@ -154,10 +154,16 @@ int main()
     sdbusplus::asio::object_server objectServer(systemBus);
     nvmeMCTP::init();
 
-    auto smbus_init = phosphor::smbus::Smbus::smbusInit(0); // test the smbusInit;
-    if (smbus_init == initError)
+    /** @brief Get NVMe info over smbus  */
+    bool getNVMeInfobyBusID(int busID, nvmeData) //can not get nvmedata, need to check where to get
     {
-        std::cerr << "smbusInit fail!" << "\n";
+        phosphor::smbus::Smbus smbus;
+
+        auto smbus_init = smbus::smbusInit(busID); // test the smbusInit; should get busID from someway
+        if (smbus_init == -1)
+        {
+            std::cerr << "smbusInit fail!" << std::endl;
+        }
     }
 
     io.post([&]() { createSensors(io, objectServer, systemBus); });
