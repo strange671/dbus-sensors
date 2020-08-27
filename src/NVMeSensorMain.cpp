@@ -157,9 +157,9 @@ int main()
     /** @brief Get NVMe info over smbus  */
     bool getNVMeInfobyBusID(int busID, nvmeData) //can not get nvmedata, need to check where to get
     {
-        phosphor::smbus::Smbus smbus;
+        auto smbus = phosphor::smbus::Smbus();
 
-        auto smbus_init = smbus::smbusInit(busID); // test the smbusInit; should get busID from someway
+        auto smbus_init = smbus.smbusInit(busID); // test the smbusInit; should get busID from someway
         if (smbus_init == -1)
         {
             std::cerr << "smbusInit fail!" << std::endl;
