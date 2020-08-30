@@ -233,6 +233,101 @@ int phosphor::smbus::Smbus::SendSmbusRWBlockCmdRAW(int smbus_num,
 namespace nvme
 {
 
+/** @brief Get NVMe info over smbus  */
+bool getNVMeInfobyBusID(int busID, phosphor::nvme::Nvme::NVMeData& nvmeData)
+{
+	#define NVME_SSD_SLAVE_ADDRESS 0x6a
+    nvmeData.present = true;
+    nvmeData.vendor = "";
+    nvmeData.serialNumber = "";
+    nvmeData.smartWarnings = "";
+    nvmeData.statusFlags = "";
+    nvmeData.driveLifeUsed = "";
+    nvmeData.sensorValue = (int8_t)TEMPERATURE_SENSOR_FAILURE;
+
+	phosphor::smbus::Smbus smbus;
+
+    unsigned char rsp_data_command_0[I2C_DATA_MAX] = {0};
+    unsigned char rsp_data_command_8[I2C_DATA_MAX] = {0};
+
+    static std::unordered_map<int, bool> isErrorSmbus;
+
+	uint8_t tx_data = 0; //set a tx_data value to test, this is command code
+
+    auto smbus_init = smbus.smbusInit(busID);
+    if (smbus_init == -1)
+    {
+        std::cerr << "smbusInit fail!" << std::endl;
+
+        nvmeData.present = false;
+
+        return nvmeData.present;
+    }
+
+    auto res_int =
+        smbus.SendSmbusRWBlockCmdRAW(busID, NVME_SSD_SLAVE_ADDRESS, &tx_data,
+                                     sizeof(tx_data), rsp_data_command_0);
+
+    if (res_int < 0)
+    {
+        if (isErrorSmbus[busID] != true)
+        {
+            log<level::ERR>("Send command code 0 fail!");
+            isErrorSmbus[busID] = true;
+        }
+
+        smbus.smbusClose(busID);
+        nvmeData.present = false;
+        return nvmeData.present;
+    }
+
+    tx_data = 8;  //set a tx_data value to test, this is command code
+
+    res_int =
+        smbus.SendSmbusRWBlockCmdRAW(busID, NVME_SSD_SLAVE_ADDRESS, &tx_data,
+                                     sizeof(tx_data), rsp_data_command_8);
+
+    if (res_int < 0)
+    {
+        if (isErrorSmbus[busID] != true)
+        {
+            log<level::ERR>("Send command code 8 fail!");
+            isErrorSmbus[busID] = true;
+        }
+
+        smbus.smbusClose(busID);
+        nvmeData.present = false;
+        return nvmeData.present;
+    }
+
+    nvmeData.vendor =
+        intToHex(rsp_data_command_8[1]) + " " + intToHex(rsp_data_command_8[2]);
+
+    for (int offset = SERIALNUMBER_START_INDEX; offset < SERIALNUMBER_END_INDEX;
+         offset++)
+    {
+        nvmeData.serialNumber += static_cast<char>(rsp_data_command_8[offset]);
+    }
+
+    nvmeData.statusFlags = intToHex(rsp_data_command_0[1]);
+    nvmeData.smartWarnings = intToHex(rsp_data_command_0[2]);
+    nvmeData.driveLifeUsed = intToHex(rsp_data_command_0[4]);
+    nvmeData.sensorValue = (int8_t)rsp_data_command_0[3];
+
+    smbus.smbusClose(busID);
+
+    isErrorSmbus[busID] = false;
+
+    return nvmeData.present;
+}
+
+void phosphor::nvme::Nvme::readNvmeData(NVMeConfig& config)
+{
+	NVMeData nvmeData;
+    // get NVMe information through i2c by busID.
+    auto success = getNVMeInfobyBusID(config.busID, nvmeData);
+}
+
 void phosphor::nvme::Nvme::createNVMeInventory()
 {
     using Properties =
@@ -258,6 +353,15 @@ void phosphor::nvme::Nvme::createNVMeInventory()
 void phosphor::nvme::Nvme::init()
 {
 	phosphor::nvme::Nvme::createNVMeInventory();
+    std::function<void()> callback(std::bind(&phosphor::nvme::Nvme::read, this)); // not sure this usage
+}
+
+void phosphor::nvme::Nvme::read()
+{
+    for (auto config : configs)
+    {
+    	phosphor::nvme::Nvme::readNvmeData(config);
+    }
 }
 
 } // namespace nvme

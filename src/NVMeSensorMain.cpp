@@ -155,22 +155,6 @@ int main()
     nvmeMCTP::init();
     phophor::nvme::Nvme:init();
 
-    //reference NVMeSensor#L504
-    const std::shared_ptr<NVMeContext>& nvmeDevice;
-    auto smbus = phosphor::smbus::Smbus();
-    /** @brief Get NVMe info over smbus  */
-    //rootbus = busnumber/busID,
-    //nvmeData = get structure,need use the same resource with mctpnvme
-    bool getNVMeInfobyBusID(nvmeDevice -> rootBus, const smbus.NVMeData& nvmeData)
-    {
-
-        auto smbus_init = smbus.smbusInit(rootbus);
-        if (smbus_init == -1)
-        {
-            std::cerr << "smbusInit fail!" << std::endl;
-        }
-    }
-
     io.post([&]() { createSensors(io, objectServer, systemBus); });
 
     boost::asio::deadline_timer filterTimer(io);

@@ -38,9 +38,31 @@ namespace nvme
 
 class Nvme
 {
-/**
-  * Structure for keeping nvme data required by nvme monitoring
-  */
+
+    /**
+     * Structure for keeping nvme configure data required by nvme monitoring
+     */
+    struct NVMeConfig
+    {
+        std::string index;
+        uint8_t busID;
+        std::string faultLedGroupPath;
+        uint8_t presentPin;
+        uint8_t pwrGoodPin;
+        std::string locateLedControllerBusName;
+        std::string locateLedControllerPath;
+        std::string locateLedGroupPath;
+        int8_t criticalHigh;
+        int8_t criticalLow;
+        int8_t maxValue;
+        int8_t minValue;
+        int8_t warningHigh;
+        int8_t warningLow;
+    };
+
+    /**
+     * Structure for keeping nvme data required by nvme monitoring
+     */
 	struct NVMeData
 	{
 		bool present;              /* Whether or not the nvme is present  */
@@ -61,8 +83,13 @@ class Nvme
     void run();
     /** @brief Set up initial configuration value of NVMe */
     void init();
+    /** @brief Monitor NVMe drives every one second  */
+    void read();
 
     void createNVMeInventory();
+
+    /** @brief read and update NVME data to dbus */
+    void readNvmeData(NVMeConfig& config);
 };
 } // namespace nvme
 
