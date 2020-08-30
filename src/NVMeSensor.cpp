@@ -229,6 +229,40 @@ int phosphor::smbus::Smbus::SendSmbusRWBlockCmdRAW(int smbus_num,
 }
 
 } // namespcae smbus
+
+namespace nvme
+{
+
+void phosphor::nvme::Nvme::createNVMeInventory()
+{
+    using Properties =
+        std::map<std::string, sdbusplus::message::variant<std::string, bool>>;
+    using Interfaces = std::map<std::string, Properties>;
+
+    std::string inventoryPath;
+    std::map<sdbusplus::message::object_path, Interfaces> obj;
+
+    for (const auto config : configs)
+    {
+        inventoryPath = "/system/chassis/motherboard/nvme" + config.index;
+
+        obj = {{
+            inventoryPath,
+            {{ITEM_IFACE, {}}, {NVME_STATUS_IFACE, {}}, {ASSET_IFACE, {}}},
+        }};
+        util::SDBusPlus::CallMethod(bus, INVENTORY_BUSNAME, INVENTORY_NAMESPACE,
+                                    INVENTORY_MANAGER_IFACE, "Notify", obj);
+    }
+}
+
+void phosphor::nvme::Nvme::init()
+{
+	phosphor::nvme::Nvme::createNVMeInventory();
+}
+
+} // namespace nvme
+} // namespace phosphor
+
 } // namespace phosphor
 
 static int lastQueriedDeviceIndex = -1;
