@@ -367,7 +367,6 @@ void phosphor::nvme::Nvme::read()
 } // namespace nvme
 } // namespace phosphor
 
-} // namespace phosphor
 
 static int lastQueriedDeviceIndex = -1;
 
