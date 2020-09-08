@@ -137,6 +137,12 @@ if (NOT YOCTO)
         target_link_libraries (runHwmonTempTests GTest::main GTest::gtest
                                pthread ${DBUS_LIBRARIES} stdc++fs)
         add_dependencies (runHwmonTempTests nlohmann-json)
+        
+        add_executable (runNVMeTests tests/test_NVMeSensor.cpp ${NVME_SRC_FILES})
+        add_test (NAME test_nvmesensor COMMAND runNVMeTests)
+        target_link_libraries (runNVMeTests GTest::main GTest::gtest pthread
+                               ${DBUS_LIBRARIES} stdc++fs)
+        add_dependencies (runNVMeTests nlohmann-json)
     endif ()
 
 endif ()
