@@ -21,7 +21,9 @@ namespace nvme
 TEST(getNVMeInfobyBusID, TestgetNVMeInfobyBusID)
 {
 
-    bool getData = getNVMeInfobyBusID(int busID, phosphor::nvme::Nvme::NVMeData& nvmeData);
+    int busID = 0;
+
+    bool getData = getNVMeInfobyBusID(busID, phosphor::nvme::Nvme::NVMeData& nvmeData);
     EXPECT_THROW(getData, std::runtime_error);
     EXPECT_EQ(true, getData);
 }
