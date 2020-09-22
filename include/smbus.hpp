@@ -29,6 +29,7 @@ class Smbus
                                uint8_t* tx_data, uint8_t tx_len,
                                uint8_t* rsp_data);
 
+    int fd[int MAX_I2C_BUS];
 };
 
 } // namespace smbus

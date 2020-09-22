@@ -31,6 +31,7 @@
 #include <mutex>
 
 #define MAX_I2C_BUS 30
+#define NVME_SSD_SLAVE_ADDRESS 0x6a
 
 static constexpr double maxReading = 127;
 static constexpr double minReading = 0;
@@ -113,8 +114,6 @@ void init()
         throw std::runtime_error("Unable to init mctp");
     }
 
-    //to do: need to create a new one with smbus init
-
     mctp_smbus_register_bus(smbus, nvmeMCTP::mctp, 0);
     mctp_set_rx_all(mctp, rxMessage, nullptr);
 }
@@ -171,9 +170,8 @@ int phosphor::smbus::Smbus::smbusInit(int smbus_num)
 {
     int res = 0;
     char filename[20];
-    int fd[MAX_I2C_BUS] = {0};
+    phosphor::smbus::Smbus fd[MAX_I2C_BUS];
 
-    gMutex.lock();
 
     fd[smbus_num] = open_i2c_dev(smbus_num, filename, sizeof(filename), 0);
     if (fd[smbus_num] < 0)
@@ -192,7 +190,7 @@ int phosphor::smbus::Smbus::smbusInit(int smbus_num)
 
 void phosphor::smbus::Smbus::smbusClose(int smbus_num)
 {
-    int fd[MAX_I2C_BUS] = {0};
+	phosphor::smbus::Smbus fd[MAX_I2C_BUS];
 
     close(fd[smbus_num]);
 }
@@ -236,7 +234,6 @@ namespace nvme
 /** @brief Get NVMe info over smbus  */
 bool getNVMeInfobyBusID(int busID, phosphor::nvme::Nvme::NVMeData& nvmeData)
 {
-	#define NVME_SSD_SLAVE_ADDRESS 0x6a
     nvmeData.present = true;
     nvmeData.vendor = "";
     nvmeData.serialNumber = "";
@@ -250,7 +247,7 @@ bool getNVMeInfobyBusID(int busID, phosphor::nvme::Nvme::NVMeData& nvmeData)
     unsigned char rsp_data_command_0[I2C_DATA_MAX] = {0};
     unsigned char rsp_data_command_8[I2C_DATA_MAX] = {0};
 
-    static std::unordered_map<int, bool> isErrorSmbus;
+    static std::unordered_map<bool> isErrorSmbus;
 
 	uint8_t tx_data = 0; //set a tx_data value to test, this is command code
 
