@@ -1,6 +1,6 @@
 #pragma once
 
-#include <libmctp-smbus.h>
+//#include <libmctp-smbus.h> // it will cause build failed with can not find this header
 #include <libmctp.h>
 
 #include <sensor.hpp>
