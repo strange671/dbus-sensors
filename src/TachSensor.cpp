@@ -22,6 +22,7 @@
 
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/replace.hpp>
+#include <boost/asio/read_until.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <gpiod.hpp>
 #include <sdbusplus/asio/connection.hpp>
@@ -49,10 +50,11 @@ TachSensor::TachSensor(const std::string& path, const std::string& objectType,
                        boost::asio::io_service& io, const std::string& fanName,
                        std::vector<thresholds::Threshold>&& _thresholds,
                        const std::string& sensorConfiguration,
-                       const std::pair<size_t, size_t>& limits) :
+                       const std::pair<size_t, size_t>& limits,
+                       const PowerState& powerState) :
     Sensor(boost::replace_all_copy(fanName, " ", "_"), std::move(_thresholds),
-           sensorConfiguration, objectType, limits.second, limits.first,
-           PowerState::on),
+           sensorConfiguration, objectType, limits.second, limits.first, conn,
+           powerState),
     objServer(objectServer), redundancy(redundancy),
     presence(std::move(presenceSensor)),
     inputDev(io, open(path.c_str(), O_RDONLY)), waitTimer(io), path(path)
@@ -147,9 +149,9 @@ void TachSensor::handleResponse(const boost::system::error_code& err)
             try
             {
                 std::getline(responseStream, response);
-                double nvalue = std::stod(response);
+                rawValue = std::stod(response);
                 responseStream.clear();
-                updateValue(nvalue);
+                updateValue(rawValue);
             }
             catch (const std::invalid_argument&)
             {

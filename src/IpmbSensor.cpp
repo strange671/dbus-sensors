@@ -69,9 +69,8 @@ IpmbSensor::IpmbSensor(std::shared_ptr<sdbusplus::asio::connection>& conn,
     Sensor(boost::replace_all_copy(sensorName, " ", "_"),
            std::move(thresholdData), sensorConfiguration,
            "xyz.openbmc_project.Configuration.ExitAirTemp", ipmbMaxReading,
-           ipmbMinReading, PowerState::on),
-    deviceAddress(deviceAddress), objectServer(objectServer),
-    dbusConnection(conn), waitTimer(io)
+           ipmbMinReading, conn, PowerState::on),
+    deviceAddress(deviceAddress), objectServer(objectServer), waitTimer(io)
 {
     std::string dbusPath = sensorPathPrefix + sensorTypeName + "/" + name;
 
@@ -155,7 +154,7 @@ void IpmbSensor::loadDefaults()
         // goto page 0
         initData = {0x57, 0x01, 0x00, 0x14, 0x03, deviceAddress, 0x00,
                     0x00, 0x00, 0x00, 0x02, 0x00, 0x00,          0x00};
-        readingFormat = ReadingFormat::byte3;
+        readingFormat = ReadingFormat::elevenBit;
     }
     else if (type == IpmbType::IR38363VR)
     {
@@ -234,15 +233,17 @@ bool IpmbSensor::processReading(const std::vector<uint8_t>& data, double& resp)
     switch (readingFormat)
     {
         case (ReadingFormat::byte0):
+        {
             if (command == ipmi::sensor::getSensorReading &&
                 !ipmi::sensor::isValid(data))
             {
                 return false;
             }
             resp = data[0];
-
             return true;
+        }
         case (ReadingFormat::byte3):
+        {
             if (data.size() < 4)
             {
                 if (!errCount)
@@ -254,7 +255,9 @@ bool IpmbSensor::processReading(const std::vector<uint8_t>& data, double& resp)
             }
             resp = data[3];
             return true;
+        }
         case (ReadingFormat::elevenBit):
+        {
             if (data.size() < 5)
             {
                 if (!errCount)
@@ -265,9 +268,15 @@ bool IpmbSensor::processReading(const std::vector<uint8_t>& data, double& resp)
                 return false;
             }
 
-            resp = ((data[4] << 8) | data[3]);
+            int16_t value = ((data[4] << 8) | data[3]);
+            constexpr const size_t shift = 16 - 11; // 11bit into 16bit
+            value <<= shift;
+            value >>= shift;
+            resp = value;
             return true;
+        }
         case (ReadingFormat::elevenBitShift):
+        {
             if (data.size() < 5)
             {
                 if (!errCount)
@@ -280,6 +289,7 @@ bool IpmbSensor::processReading(const std::vector<uint8_t>& data, double& resp)
 
             resp = ((data[4] << 8) | data[3]) >> 3;
             return true;
+        }
         default:
             throw std::runtime_error("Invalid reading type");
     }
@@ -335,6 +345,18 @@ void IpmbSensor::read(void)
                     incrementError();
                     read();
                     return;
+                }
+                else
+                {
+                    // rawValue only used in debug logging
+                    // up to 5th byte in data are used to derive value
+                    size_t end = std::min(sizeof(uint64_t), data.size());
+                    uint64_t rawData = 0;
+                    for (size_t i = 0; i < end; i++)
+                    {
+                        reinterpret_cast<uint8_t*>(&rawData)[i] = data[i];
+                    }
+                    rawValue = static_cast<double>(rawData);
                 }
 
                 /* Adjust value as per scale and offset */

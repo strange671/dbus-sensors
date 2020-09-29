@@ -22,6 +22,7 @@
 
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/replace.hpp>
+#include <boost/asio/read_until.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <sdbusplus/asio/connection.hpp>
 #include <sdbusplus/asio/object_server.hpp>
@@ -43,10 +44,11 @@ CPUSensor::CPUSensor(const std::string& path, const std::string& objectType,
                      bool show, double dtsOffset) :
     Sensor(boost::replace_all_copy(sensorName, " ", "_"),
            std::move(_thresholds), sensorConfiguration, objectType, maxReading,
-           minReading, PowerState::on),
+           minReading, conn, PowerState::on),
     objServer(objectServer), inputDev(io), waitTimer(io), path(path),
     privTcontrol(std::numeric_limits<double>::quiet_NaN()),
-    dtsOffset(dtsOffset), show(show), pollTime(CPUSensor::sensorPollMs)
+    dtsOffset(dtsOffset), show(show), pollTime(CPUSensor::sensorPollMs),
+    minMaxReadCounter(0)
 {
     nameTcontrol = labelTcontrol;
     nameTcontrol += " CPU" + std::to_string(cpuId);
@@ -194,10 +196,26 @@ void CPUSensor::updateMinMaxValues(void)
 
 void CPUSensor::handleResponse(const boost::system::error_code& err)
 {
+
     if (err == boost::system::errc::bad_file_descriptor)
     {
         return; // we're being destroyed
     }
+    else if (err == boost::system::errc::operation_canceled)
+    {
+        if (readingStateGood())
+        {
+            if (!loggedInterfaceDown)
+            {
+                std::cerr << name << " interface down!\n";
+                loggedInterfaceDown = true;
+            }
+            pollTime = 10000 + rand() % 10000;
+            markFunctional(false);
+        }
+        return;
+    }
+    loggedInterfaceDown = false;
     pollTime = CPUSensor::sensorPollMs;
     std::istream responseStream(&readBuf);
     if (!err)
@@ -206,9 +224,9 @@ void CPUSensor::handleResponse(const boost::system::error_code& err)
         try
         {
             std::getline(responseStream, response);
-            double nvalue = std::stod(response);
+            rawValue = std::stod(response);
             responseStream.clear();
-            nvalue /= CPUSensor::sensorScaleFactor;
+            double nvalue = rawValue / CPUSensor::sensorScaleFactor;
 
             if (show)
             {
@@ -218,7 +236,10 @@ void CPUSensor::handleResponse(const boost::system::error_code& err)
             {
                 value = nvalue;
             }
-            updateMinMaxValues();
+            if (minMaxReadCounter++ % 8 == 0)
+            {
+                updateMinMaxValues();
+            }
 
             double gTcontrol = gCpuSensors[nameTcontrol]
                                    ? gCpuSensors[nameTcontrol]->value

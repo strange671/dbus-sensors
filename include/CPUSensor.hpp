@@ -4,6 +4,7 @@
 #include "Utils.hpp"
 #include "sensor.hpp"
 
+#include <boost/asio/streambuf.hpp>
 #include <boost/container/flat_map.hpp>
 #include <gpiod.hpp>
 #include <sdbusplus/asio/object_server.hpp>
@@ -45,6 +46,8 @@ class CPUSensor : public Sensor
     double dtsOffset;
     bool show;
     size_t pollTime;
+    bool loggedInterfaceDown = false;
+    uint8_t minMaxReadCounter;
     void setupRead(void);
     void handleResponse(const boost::system::error_code& err);
     void checkThresholds(void) override;

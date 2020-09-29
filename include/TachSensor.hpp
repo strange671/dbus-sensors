@@ -4,6 +4,7 @@
 
 #include <systemd/sd-journal.h>
 
+#include <boost/asio/streambuf.hpp>
 #include <boost/container/flat_map.hpp>
 #include <boost/container/flat_set.hpp>
 #include <gpiod.hpp>
@@ -71,7 +72,8 @@ class TachSensor : public Sensor
                boost::asio::io_service& io, const std::string& fanName,
                std::vector<thresholds::Threshold>&& thresholds,
                const std::string& sensorConfiguration,
-               const std::pair<size_t, size_t>& limits);
+               const std::pair<size_t, size_t>& limits,
+               const PowerState& powerState = PowerState::on);
     ~TachSensor();
 
   private:

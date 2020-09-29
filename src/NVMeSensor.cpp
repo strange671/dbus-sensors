@@ -479,7 +479,6 @@ void readAndProcessNVMeSensor(const std::shared_ptr<NVMeContext>& nvmeDevice)
 
     nvmeDevice->mctpResponseTimer.async_wait(
         [sensor, nvmeDevice](const boost::system::error_code errorCode) {
-            constexpr const size_t errorThreshold = 5;
             if (errorCode)
             {
                 // timer cancelled successfully
@@ -679,7 +678,7 @@ NVMeContext::~NVMeContext()
 }
 
 NVMeSensor::NVMeSensor(sdbusplus::asio::object_server& objectServer,
-                       boost::asio::io_service& io,
+                       boost::asio::io_service&,
                        std::shared_ptr<sdbusplus::asio::connection>& conn,
                        const std::string& sensorName,
                        std::vector<thresholds::Threshold>&& _thresholds,
@@ -688,7 +687,7 @@ NVMeSensor::NVMeSensor(sdbusplus::asio::object_server& objectServer,
     Sensor(boost::replace_all_copy(sensorName, " ", "_"),
            std::move(_thresholds), sensorConfiguration,
            "xyz.openbmc_project.Configuration.NVMe", maxReading, minReading,
-           PowerState::on),
+           conn, PowerState::on),
     objServer(objectServer), bus(busNumber)
 {
     sensorInterface = objectServer.add_interface(

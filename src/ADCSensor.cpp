@@ -20,6 +20,7 @@
 
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/replace.hpp>
+#include <boost/asio/read_until.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <sdbusplus/asio/connection.hpp>
 #include <sdbusplus/asio/object_server.hpp>
@@ -55,7 +56,7 @@ ADCSensor::ADCSensor(const std::string& path,
     Sensor(boost::replace_all_copy(sensorName, " ", "_"),
            std::move(_thresholds), sensorConfiguration,
            "xyz.openbmc_project.Configuration.ADC", maxReading, minReading,
-           readState),
+           conn, readState),
     std::enable_shared_from_this<ADCSensor>(), objServer(objectServer),
     inputDev(io, open(path.c_str(), O_RDONLY)), waitTimer(io), path(path),
     scaleFactor(scaleFactor), bridgeGpio(std::move(bridgeGpio)),
@@ -78,6 +79,7 @@ ADCSensor::ADCSensor(const std::string& path,
     }
     association = objectServer.add_interface(
         "/xyz/openbmc_project/sensors/voltage/" + name, association::interface);
+
     setInitialProperties(conn);
 }
 
@@ -166,11 +168,9 @@ void ADCSensor::handleResponse(const boost::system::error_code& err)
         // todo read scaling factors from configuration
         try
         {
-            double nvalue = std::stod(response);
-
-            nvalue = (nvalue / sensorScaleFactor) / scaleFactor;
+            rawValue = std::stod(response);
+            double nvalue = (rawValue / sensorScaleFactor) / scaleFactor;
             nvalue = std::round(nvalue * roundFactor) / roundFactor;
-
             updateValue(nvalue);
         }
         catch (std::invalid_argument&)
@@ -192,6 +192,7 @@ void ADCSensor::handleResponse(const boost::system::error_code& err)
     int fd = open(path.c_str(), O_RDONLY);
     if (fd < 0)
     {
+        std::cerr << "adcsensor " << name << " failed to open " << path << "\n";
         return; // we're no longer valid
     }
     inputDev.assign(fd);
@@ -200,12 +201,24 @@ void ADCSensor::handleResponse(const boost::system::error_code& err)
         std::shared_ptr<ADCSensor> self = weakRef.lock();
         if (ec == boost::asio::error::operation_aborted)
         {
+            if (self)
+            {
+                std::cerr << "adcsensor " << self->name << " read cancelled\n";
+            }
+            else
+            {
+                std::cerr << "adcsensor read cancelled no self\n";
+            }
             return; // we're being canceled
         }
 
         if (self)
         {
             self->setupRead();
+        }
+        else
+        {
+            std::cerr << "adcsensor weakref no self\n";
         }
     });
 }
