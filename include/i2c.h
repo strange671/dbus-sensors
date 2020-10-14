@@ -24,7 +24,7 @@ static inline __s32 i2c_read_after_write(int file, __u8 slave_addr, __u8 tx_len,
     msgst.msgs = msg;
     msgst.nmsgs = 2;
 
-    ret = ioctl(file, I2C_RDWR, &msgst);
+    ret = ioctl(file, O_RDWR, &msgst);
 
     if (ret < 0)
         return ret;
@@ -32,7 +32,7 @@ static inline __s32 i2c_read_after_write(int file, __u8 slave_addr, __u8 tx_len,
     return ret;
 }
 
-static inline __s32 i2c_smbus_access(int file, char read_write, __u8 command,
+/*static inline __s32 i2c_smbus_access(int file, char read_write, __u8 command,
                                      int size, union i2c_smbus_data* data)
 {
     struct i2c_smbus_ioctl_data args;
@@ -42,7 +42,7 @@ static inline __s32 i2c_smbus_access(int file, char read_write, __u8 command,
     args.size = size;
     args.data = data;
     return ioctl(file, I2C_SMBUS, &args);
-}
+}*/
 
 static inline __s32 i2c_smbus_read_byte_data(int file, __u8 command)
 {

@@ -36,6 +36,8 @@
 static constexpr double maxReading = 127;
 static constexpr double minReading = 0;
 
+static constexpr const int TEMPERATURE_SENSOR_FAILURE = 0x81;
+
 static constexpr bool DEBUG = false;
 
 void rxMessage(uint8_t eid, void* data, void* msg, size_t len);
@@ -170,8 +172,9 @@ int phosphor::smbus::Smbus::smbusInit(int smbus_num)
 {
     int res = 0;
     char filename[20];
-    phosphor::smbus::Smbus fd[MAX_I2C_BUS];
+    int fd[MAX_I2C_BUS] = {0};
 
+    gMutex.lock();
 
     fd[smbus_num] = open_i2c_dev(smbus_num, filename, sizeof(filename), 0);
     if (fd[smbus_num] < 0)
@@ -190,7 +193,7 @@ int phosphor::smbus::Smbus::smbusInit(int smbus_num)
 
 void phosphor::smbus::Smbus::smbusClose(int smbus_num)
 {
-	phosphor::smbus::Smbus fd[MAX_I2C_BUS];
+    int fd[MAX_I2C_BUS] = {0};
 
     close(fd[smbus_num]);
 }
@@ -247,7 +250,7 @@ bool getNVMeInfobyBusID(int busID, phosphor::nvme::Nvme::NVMeData& nvmeData)
     unsigned char rsp_data_command_0[I2C_DATA_MAX] = {0};
     unsigned char rsp_data_command_8[I2C_DATA_MAX] = {0};
 
-    static std::unordered_map<bool> isErrorSmbus;
+    static std::unordered_map<int, bool> isErrorSmbus;
 
 	uint8_t tx_data = 0; //set a tx_data value to test, this is command code
 
@@ -350,7 +353,7 @@ void phosphor::nvme::Nvme::createNVMeInventory()
 void phosphor::nvme::Nvme::init()
 {
 	phosphor::nvme::Nvme::createNVMeInventory();
-    std::function<void()> callback(std::bind(&phosphor::nvme::Nvme::read, this)); // not sure this usage
+	std::function<void()> callback(std::bind(&phosphor::nvme::Nvme::read, this)); // not sure this usage
 }
 
 void phosphor::nvme::Nvme::read()
@@ -369,7 +372,7 @@ static int lastQueriedDeviceIndex = -1;
 
 void readResponse(const std::shared_ptr<NVMeContext>& nvmeDevice)
 {
-    nvmeDevice->nvmeSlaveSocket.async_wait(
+/*    nvmeDevice->nvmeSlaveSocket.async_wait(
         boost::asio::ip::tcp::socket::wait_error,
         [nvmeDevice](const boost::system::error_code errorCode) {
             if (errorCode)
@@ -382,7 +385,7 @@ void readResponse(const std::shared_ptr<NVMeContext>& nvmeDevice)
 
             // through libmctp this will invoke rxMessage
             mctp_smbus_read(nvmeMCTP::smbus);
-        });
+        });*/
 }
 
 int nvmeMessageTransmit(mctp& mctp, nvme_mi_msg_request& req)
@@ -465,7 +468,6 @@ void readAndProcessNVMeSensor(const std::shared_ptr<NVMeContext>& nvmeDevice)
     requestMsg.header.dword1 = 0;
 
     int mctpResponseTimeout = 1;
-
     if (nvmeDevice->sensors.empty())
     {
         return;
@@ -491,7 +493,7 @@ void readAndProcessNVMeSensor(const std::shared_ptr<NVMeContext>& nvmeDevice)
             nvmeDevice->sensors.pop_front();
             nvmeDevice->sensors.emplace_back(sensor);
 
-            nvmeDevice->nvmeSlaveSocket.cancel();
+//            nvmeDevice->nvmeSlaveSocket.cancel();
         });
 
     readResponse(nvmeDevice);

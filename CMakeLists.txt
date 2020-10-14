@@ -81,7 +81,7 @@ set (EXTERNAL_PACKAGES Boost sdbusplus-project nlohmann-json)
 set (SENSOR_LINK_LIBS -lsystemd stdc++fs sdbusplus)
 
 if (NOT YOCTO)
-    ##set (DISABLE_NVME ON) # todo allow this to build out of tree
+    set (DISABLE_NVME OFF) # todo allow this to build out of tree
     option (ENABLE_TEST "Enable Google Test" OFF)
 
     externalproject_add (
@@ -116,18 +116,6 @@ if (NOT YOCTO)
                          CONFIGURE_COMMAND "" BUILD_COMMAND "" INSTALL_COMMAND
                          "" LOG_DOWNLOAD ON)
     include_directories (SYSTEM ${CMAKE_BINARY_DIR}/nlohmann-json-src/include)
-
-    externalproject_add (libmctp PREFIX ${CMAKE_CURRENT_BINARY_DIR}/libmctp
-                         GIT_REPOSITORY https://github.com/edtanous/libmctp.git
-                         GIT_TAG PR_NVMe SOURCE_DIR
-                         ${CMAKE_BINARY_DIR}/libmctp-src BINARY_DIR
-                         ${CMAKE_BINARY_DIR}/libmctp-build CONFIGURE_COMMAND cd
-                         ${CMAKE_BINARY_DIR}/libmctp-src && cmake .
-                         BUILD_COMMAND cd ${CMAKE_BINARY_DIR}/libmctp-src &&
-                         make -j INSTALL_COMMAND cd ${CMAKE_BINARY_DIR} && ln
-                         -rsf libmctp-src mctp LOG_DOWNLOAD ON)
-    include_directories (${CMAKE_BINARY_DIR})
-    link_directories (${CMAKE_BINARY_DIR}/libmctp-src)
 
 
     if (ENABLE_TEST)
@@ -215,14 +203,11 @@ add_executable (psusensor src/PSUSensorMain.cpp ${PSU_SRC_FILES})
 add_dependencies (psusensor sdbusplus-project)
 target_link_libraries (psusensor ${SENSOR_LINK_LIBS})
 
-##if (NOT DISABLE_NVME)
+if (NOT DISABLE_NVME)
     add_executable (nvmesensor ${NVME_SRC_FILES})
     add_dependencies (nvmesensor sdbusplus-project)
     target_link_libraries (nvmesensor libmctp.a i2c ${SENSOR_LINK_LIBS})
-##endif()
-
-##target_link_libraries (nvmesensor libmctp.a)
-##target_link_libraries (nvmesensor i2c ${SENSOR_LINK_LIBS})
+endif()
 
 if (NOT YOCTO)
     add_dependencies (adcsensor ${EXTERNAL_PACKAGES})

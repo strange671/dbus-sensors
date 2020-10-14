@@ -1,6 +1,7 @@
 #pragma once
 
-//#include <libmctp-smbus.h> // it will cause build failed with can not find this header
+// it will cause sdk compile failed with cannot find files
+#include <libmctp-smbus.h>
 #include <libmctp.h>
 
 #include <sensor.hpp>
