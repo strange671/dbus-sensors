@@ -372,7 +372,7 @@ static int lastQueriedDeviceIndex = -1;
 
 void readResponse(const std::shared_ptr<NVMeContext>& nvmeDevice)
 {
-/*    nvmeDevice->nvmeSlaveSocket.async_wait(
+    nvmeDevice->nvmeSlaveSocket.async_wait(
         boost::asio::ip::tcp::socket::wait_error,
         [nvmeDevice](const boost::system::error_code errorCode) {
             if (errorCode)
@@ -385,7 +385,7 @@ void readResponse(const std::shared_ptr<NVMeContext>& nvmeDevice)
 
             // through libmctp this will invoke rxMessage
             mctp_smbus_read(nvmeMCTP::smbus);
-        });*/
+        });
 }
 
 int nvmeMessageTransmit(mctp& mctp, nvme_mi_msg_request& req)
@@ -493,7 +493,7 @@ void readAndProcessNVMeSensor(const std::shared_ptr<NVMeContext>& nvmeDevice)
             nvmeDevice->sensors.pop_front();
             nvmeDevice->sensors.emplace_back(sensor);
 
-//            nvmeDevice->nvmeSlaveSocket.cancel();
+            nvmeDevice->nvmeSlaveSocket.cancel();
         });
 
     readResponse(nvmeDevice);
