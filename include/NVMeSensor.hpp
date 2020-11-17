@@ -1,8 +1,9 @@
 #pragma once
 
+#ifdef HAVE_LIBMCTP_SMBUS
 #include <libmctp-smbus.h>
 #include <libmctp.h>
-
+#endif
 #include <boost/asio/deadline_timer.hpp>
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/ip/tcp.hpp>
@@ -43,7 +44,7 @@ struct NVMeContext : std::enable_shared_from_this<NVMeContext>
     std::list<std::shared_ptr<NVMeSensor>> sensors; // used as a poll queue
 };
 
-struct NVMeMCTPContext : std::share_ptr<NVMeContext>
+struct NVMeMCTPContext //: std::share_ptr<NVMeContext>
 {
     boost::asio::deadline_timer scanTimer;
 
@@ -55,7 +56,7 @@ struct NVMeMCTPContext : std::share_ptr<NVMeContext>
     virtual ~NVMeMCTPContext();
 };
 
-struct NVMeSMBusContext : std::share_ptr<NVMeContext>
+struct NVMeSMBusContext //: std::share_ptr<NVMeContext>
 {
     int busfd;
 

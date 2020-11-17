@@ -16,12 +16,14 @@
 
 #include "NVMeSensor.hpp"
 
-#include "i2c.h"
+//#include "i2c.h"
 
 #include "NVMeDevice.hpp"
 
+#ifdef HAVE_LIBMCTP_SMBUS
 #include <crc32c.h>
 #include <libmctp-smbus.h>
+#endif
 
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/asio/ip/tcp.hpp>
