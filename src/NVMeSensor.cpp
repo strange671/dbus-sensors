@@ -16,7 +16,7 @@
 
 #include "NVMeSensor.hpp"
 
-//#include "i2c.h"
+#include "i2c.h"
 
 #include "NVMeDevice.hpp"
 
@@ -35,8 +35,10 @@ static constexpr double minReading = 0;
 
 static constexpr bool DEBUG = false;
 
-void rxMessage(uint8_t eid, void* data, void* msg, size_t len);
+static int busfd[256] = {0};
 
+void rxMessage(uint8_t eid, void* data, void* msg, size_t len);
+#ifdef HAVE_LIBMCTP_SMBUS
 namespace nvmeMCTP
 {
 struct mctp_binding_smbus* smbus = mctp_smbus_init();
@@ -115,7 +117,7 @@ void init()
 }
 
 } // namespace nvmeMCTP
-
+#endif
 namespace nvmeSMBus
 {
 int OpenI2cDev(int i2cbus, char* filename, size_t size, int quiet)
@@ -162,16 +164,16 @@ int SmbusInit(int smbus_num)
 {
     int res = 0;
     char filename[20];
-    int busfd; // record:this need to be a class
+    //busfd[256] = {0}; // record:this need to be a class
 
-    busfd = OpenI2cDev(smbus_num, filename, sizeof(filename), 0);
+    busfd[smbus_num] = OpenI2cDev(smbus_num, filename, sizeof(filename), 0);
     if (busfd < 0)
     {
 
         return -1;
     }
 
-    res = busfd;
+    res = busfd[smbus_num];
 
     return res;
 }
@@ -188,11 +190,13 @@ int SendSmbusRWBlockCmdRAW(int smbus_num, int8_t device_addr, uint8_t* tx_data,
                            uint8_t tx_len, uint8_t* rsp_data)
 {
     int res, res_len;
-    unsigned char Rx_buf[I2C_DATA_MAX] = {0};
+    unsigned char Rx_buf[256] = {0};
 
     Rx_buf[0] = 1;
 
-    res = i2c_read_after_write(fd[smbus_num], device_addr, tx_len,
+//    int fd[smbus_num] = open_i2c_dev(smbus_num, filename, sizeof(filename), 0);
+
+    res = i2c_read_after_write(busfd[smbus_num], device_addr, tx_len,
                                (unsigned char*)tx_data, I2C_DATA_MAX,
                                (unsigned char*)Rx_buf);
 
@@ -209,7 +213,7 @@ int SendSmbusRWBlockCmdRAW(int smbus_num, int8_t device_addr, uint8_t* tx_data,
 }
 
 } // namespace nvmeSMBus
-
+#ifdef HAVE_SMBUS_MCTP
 void readResponse(const std::shared_ptr<NVMeContext>& nvmeDevice)
 {
     nvmeDevice->nvmeSlaveSocket.async_wait(
@@ -219,12 +223,13 @@ void readResponse(const std::shared_ptr<NVMeContext>& nvmeDevice)
             {
                 return;
             }
-
+#ifdef HAVE_SMBUS_MCTP
             mctp_smbus_set_in_fd(nvmeMCTP::smbus,
                                  nvmeMCTP::getInFd(nvmeDevice->rootBus));
 
             // through libmctp this will invoke rxMessage
             mctp_smbus_read(nvmeMCTP::smbus);
+#endif
         });
 }
 
@@ -343,8 +348,9 @@ void readAndProcessNVMeSensor(const std::shared_ptr<NVMeContext>& nvmeDevice)
                   << sensor->bus << " , rootBus: " << nvmeDevice->rootBus
                   << " device: " << sensor->name << "\n";
     }
-
+#ifdef HAVE_SMBUS_MCTP
     mctp_smbus_set_out_fd(nvmeMCTP::smbus, nvmeMCTP::getOutFd(sensor->bus));
+#endif
     int rc = nvmeMessageTransmit(*nvmeMCTP::mctp, requestMsg);
 
     if (rc != 0)
@@ -371,7 +377,7 @@ void rxMessage(uint8_t eid, void*, void* msg, size_t len)
 {
     struct nvme_mi_msg_response_header header
     {};
-
+#ifdef HAVE_SMBUS_MCTP
     int inFd = mctp_smbus_get_in_fd(nvmeMCTP::smbus);
     int rootBus = nvmeMCTP::getRootBus(inFd);
 
@@ -383,7 +389,7 @@ void rxMessage(uint8_t eid, void*, void* msg, size_t len)
         return;
     }
     std::shared_ptr<NVMeContext>& self = findMap->second;
-
+#endif
     if (msg == nullptr)
     {
         std::cerr << "Bad message received\n";
@@ -474,12 +480,12 @@ void rxMessage(uint8_t eid, void*, void* msg, size_t len)
 
     self->mctpResponseTimer.cancel();
 }
-
+#endif
 NVMeContext::NVMeContext(boost::asio::io_service& io, int rootBus) :
     rootBus(rootBus), scanTimer(io), nvmeSlaveSocket(io), mctpResponseTimer(io)
 {
-    nvmeSlaveSocket.assign(boost::asio::ip::tcp::v4(),
-                           nvmeMCTP::getInFd(rootBus));
+//    nvmeSlaveSocket.assign(boost::asio::ip::tcp::v4(),
+//                           nvmeMCTP::getInFd(rootBus));
 } // this should be modify that separate NVMeContext as two part -> one of
   // NVMeMCTPContext
 
@@ -499,7 +505,7 @@ void NVMeContext::pollNVMeDevices()
             }
             else
             {
-                readAndProcessNVMeSensor(self);
+//                readAndProcessNVMeSensor(self);
             }
 
             self->pollNVMeDevices();
@@ -511,7 +517,7 @@ void NVMeContext::close()
     scanTimer.cancel();
     mctpResponseTimer.cancel();
     nvmeSlaveSocket.cancel();
-    nvmeMCTP::closeInFd(rootBus);
+//    nvmeMCTP::closeInFd(rootBus);
 }
 
 NVMeContext::~NVMeContext()

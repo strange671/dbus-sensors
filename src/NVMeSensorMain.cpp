@@ -153,8 +153,9 @@ int main()
     auto systemBus = std::make_shared<sdbusplus::asio::connection>(io);
     systemBus->request_name("xyz.openbmc_project.NVMeSensor");
     sdbusplus::asio::object_server objectServer(systemBus);
+#ifdef HAVE_SMBUS_MCTP
     nvmeMCTP::init();
-
+#endif
     io.post([&]() { createSensors(io, objectServer, systemBus); });
 
     boost::asio::deadline_timer filterTimer(io);

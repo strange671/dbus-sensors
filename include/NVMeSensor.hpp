@@ -41,22 +41,28 @@ struct NVMeContext : std::enable_shared_from_this<NVMeContext>
 
     int rootBus; // Root bus for this drive
 
-    std::list<std::shared_ptr<NVMeSensor>> sensors; // used as a poll queue
-};
-
-struct NVMeMCTPContext //: std::share_ptr<NVMeContext>
-{
     boost::asio::deadline_timer scanTimer;
 
     boost::asio::deadline_timer mctpResponseTimer;
     boost::asio::ip::tcp::socket nvmeSlaveSocket;
+
+
+    std::list<std::shared_ptr<NVMeSensor>> sensors; // used as a poll queue
+
+};
+struct NVMeMCTPContext : std::enable_shared_from_this<NVMeContext>
+{
+//    boost::asio::deadline_timer scanTimer;
+
+//    boost::asio::deadline_timer mctpResponseTimer;
+//    boost::asio::ip::tcp::socket nvmeSlaveSocket;
 
     // link NVMeContext
 
     virtual ~NVMeMCTPContext();
 };
 
-struct NVMeSMBusContext //: std::share_ptr<NVMeContext>
+struct NVMeSMBusContext : std::enable_shared_from_this<NVMeSMBusContext>
 {
     int busfd;
 
