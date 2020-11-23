@@ -156,6 +156,7 @@ int main()
 #ifdef HAVE_SMBUS_MCTP
     nvmeMCTP::init();
 #endif
+//    nvmeSMBus::SmbusInit(1);
     io.post([&]() { createSensors(io, objectServer, systemBus); });
 
     boost::asio::deadline_timer filterTimer(io);

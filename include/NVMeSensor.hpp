@@ -30,7 +30,30 @@ class NVMeSensor : public Sensor
     void checkThresholds(void) override;
 };
 
-struct NVMeContext : std::enable_shared_from_this<NVMeContext>
+
+struct NVMeMCTPContext //: std::enable_shared_from_this<NVMeMCTPContext>
+{
+    NVMeMCTPContext(boost::asio::io_service& io/*, int rootBus*/);
+    boost::asio::deadline_timer scanTimer;
+
+    boost::asio::deadline_timer mctpResponseTimer;
+    boost::asio::ip::tcp::socket nvmeSlaveSocket;
+
+    // link NVMeContext
+
+    virtual ~NVMeMCTPContext();
+};
+
+struct NVMeSMBusContext //: std::enable_shared_from_this<NVMeSMBusContext>
+{
+    int busfd;
+
+    // link NVMeContext
+
+    virtual ~NVMeSMBusContext();
+};
+
+struct NVMeContext : NVMeMCTPContext, NVMeSMBusContext, std::enable_shared_from_this<NVMeContext>//, NVMeMCTPContext
 {
     NVMeContext(boost::asio::io_service& io, int rootBus);
 
@@ -41,34 +64,14 @@ struct NVMeContext : std::enable_shared_from_this<NVMeContext>
 
     int rootBus; // Root bus for this drive
 
-    boost::asio::deadline_timer scanTimer;
-
-    boost::asio::deadline_timer mctpResponseTimer;
-    boost::asio::ip::tcp::socket nvmeSlaveSocket;
-
-
-    std::list<std::shared_ptr<NVMeSensor>> sensors; // used as a poll queue
-
-};
-struct NVMeMCTPContext : std::enable_shared_from_this<NVMeContext>
-{
 //    boost::asio::deadline_timer scanTimer;
 
 //    boost::asio::deadline_timer mctpResponseTimer;
 //    boost::asio::ip::tcp::socket nvmeSlaveSocket;
 
-    // link NVMeContext
+//    std::list<std::shared_ptr<NVMeMCTPContext>> NVMeMCTPContext;
+    std::list<std::shared_ptr<NVMeSensor>> sensors; // used as a poll queue
 
-    virtual ~NVMeMCTPContext();
-};
-
-struct NVMeSMBusContext : std::enable_shared_from_this<NVMeSMBusContext>
-{
-    int busfd;
-
-    // link NVMeContext
-
-    virtual ~NVMeSMBusContext();
 };
 
 using NVMEMap = boost::container::flat_map<int, std::shared_ptr<NVMeContext>>;

@@ -481,8 +481,15 @@ void rxMessage(uint8_t eid, void*, void* msg, size_t len)
     self->mctpResponseTimer.cancel();
 }
 #endif
+
+NVMeMCTPContext::NVMeMCTPContext(boost::asio::io_service& io/*, int rootBus*/) :
+    scanTimer(io), nvmeSlaveSocket(io), mctpResponseTimer(io)
+{
+
+}
+
 NVMeContext::NVMeContext(boost::asio::io_service& io, int rootBus) :
-    rootBus(rootBus), scanTimer(io), nvmeSlaveSocket(io), mctpResponseTimer(io)
+    rootBus(rootBus), NVMeMCTPContext::NVMeMCTPContext(io)//scanTimer(io), nvmeSlaveSocket(io), mctpResponseTimer(io)
 {
 //    nvmeSlaveSocket.assign(boost::asio::ip::tcp::v4(),
 //                           nvmeMCTP::getInFd(rootBus));
@@ -523,6 +530,14 @@ void NVMeContext::close()
 NVMeContext::~NVMeContext()
 {
     close();
+}
+
+NVMeMCTPContext::~NVMeMCTPContext()
+{
+}
+
+NVMeSMBusContext::~NVMeSMBusContext()
+{
 }
 
 NVMeSensor::NVMeSensor(sdbusplus::asio::object_server& objectServer,
