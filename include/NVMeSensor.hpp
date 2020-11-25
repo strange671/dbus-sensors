@@ -1,9 +1,9 @@
 #pragma once
 
-#ifdef HAVE_LIBMCTP_SMBUS
+#if HAVE_LIBMCTP_SMBUS
 #include <libmctp-smbus.h>
-#include <libmctp.h>
 #endif
+#include <libmctp.h>
 #include <boost/asio/deadline_timer.hpp>
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/ip/tcp.hpp>
@@ -30,7 +30,7 @@ class NVMeSensor : public Sensor
     void checkThresholds(void) override;
 };
 
-
+//#ifdef HAVE_LIBMCTP_SMBUS
 struct NVMeMCTPContext //: std::enable_shared_from_this<NVMeMCTPContext>
 {
     NVMeMCTPContext(boost::asio::io_service& io/*, int rootBus*/);
@@ -43,6 +43,7 @@ struct NVMeMCTPContext //: std::enable_shared_from_this<NVMeMCTPContext>
 
     virtual ~NVMeMCTPContext();
 };
+//#endif
 
 struct NVMeSMBusContext //: std::enable_shared_from_this<NVMeSMBusContext>
 {
@@ -81,6 +82,26 @@ int verifyIntegrity(uint8_t* msg, size_t len);
 namespace nvmeMCTP
 {
 void init(void);
+#if HAVE_LIBMCTP_SMBUS
+//typedef void (*mctp_rx_fn)(uint8_t src_eid, void *data, void *msg, size_t len, bool tag_owner, uint8_t tag, void *msg_binding_private);
+
+int mctp_smbus_register_bus(struct mctp_binding_smbus *smbus, struct mctp *mctp, mctp_eid_t eid);
+int mctp_set_rx_all(struct mctp *mctp, mctp_rx_fn fn, void *data);
+struct mctp_binding_smbus *mctp_smbus_init(void);
+#else
+int mctp_smbus_register_bus(struct mctp_binding_smbus *smbus, struct mctp *mctp, mctp_eid_t eid)
+{
+return -ENOTSUP;
+}
+int mctp_set_rx_all(struct mctp *mctp, mctp_rx_fn fn, void *data)
+{
+return -ENOTSUP;
+}
+struct mctp_binding_smbus *mctp_smbus_init(void)
+{
+return 0;
+}
+#endif
 }
 
 namespace nvmeSMBus

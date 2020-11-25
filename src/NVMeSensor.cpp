@@ -35,18 +35,16 @@ static constexpr double minReading = 0;
 
 static constexpr bool DEBUG = false;
 
-static int busfd[256] = {0};
+//static int busfd[256] = {0};
 
 void rxMessage(uint8_t eid, void* data, void* msg, size_t len);
-#ifdef HAVE_LIBMCTP_SMBUS
 namespace nvmeMCTP
 {
 struct mctp_binding_smbus* smbus = mctp_smbus_init();
 struct mctp* mctp = mctp_init();
-
 static boost::container::flat_map<int, int> inFds;
 static boost::container::flat_map<int, int> outFds;
-
+//#if HAVE_LIBMCTP_SMBUS
 int getInFd(int rootBus)
 {
     auto findBus = inFds.find(rootBus);
@@ -105,7 +103,6 @@ int getRootBus(int inFd)
 
     return -1;
 }
-
 void init()
 {
     if (mctp == nullptr || smbus == nullptr)
@@ -115,11 +112,12 @@ void init()
     mctp_smbus_register_bus(smbus, nvmeMCTP::mctp, 0);
     mctp_set_rx_all(mctp, rxMessage, nullptr);
 }
-
+//#endif
 } // namespace nvmeMCTP
-#endif
 namespace nvmeSMBus
 {
+
+static boost::container::flat_map<int, int> busfd;
 int OpenI2cDev(int i2cbus, char* filename, size_t size, int quiet)
 {
     int file;
@@ -167,7 +165,7 @@ int SmbusInit(int smbus_num)
     //busfd[256] = {0}; // record:this need to be a class
 
     busfd[smbus_num] = OpenI2cDev(smbus_num, filename, sizeof(filename), 0);
-    if (busfd < 0)
+    if (busfd[smbus_num] < 0)
     {
 
         return -1;
@@ -213,7 +211,6 @@ int SendSmbusRWBlockCmdRAW(int smbus_num, int8_t device_addr, uint8_t* tx_data,
 }
 
 } // namespace nvmeSMBus
-#ifdef HAVE_SMBUS_MCTP
 void readResponse(const std::shared_ptr<NVMeContext>& nvmeDevice)
 {
     nvmeDevice->nvmeSlaveSocket.async_wait(
@@ -223,13 +220,11 @@ void readResponse(const std::shared_ptr<NVMeContext>& nvmeDevice)
             {
                 return;
             }
-#ifdef HAVE_SMBUS_MCTP
             mctp_smbus_set_in_fd(nvmeMCTP::smbus,
                                  nvmeMCTP::getInFd(nvmeDevice->rootBus));
 
             // through libmctp this will invoke rxMessage
             mctp_smbus_read(nvmeMCTP::smbus);
-#endif
         });
 }
 
@@ -348,9 +343,7 @@ void readAndProcessNVMeSensor(const std::shared_ptr<NVMeContext>& nvmeDevice)
                   << sensor->bus << " , rootBus: " << nvmeDevice->rootBus
                   << " device: " << sensor->name << "\n";
     }
-#ifdef HAVE_SMBUS_MCTP
     mctp_smbus_set_out_fd(nvmeMCTP::smbus, nvmeMCTP::getOutFd(sensor->bus));
-#endif
     int rc = nvmeMessageTransmit(*nvmeMCTP::mctp, requestMsg);
 
     if (rc != 0)
@@ -372,12 +365,10 @@ static double getTemperatureReading(int8_t reading)
 
     return reading;
 }
-
 void rxMessage(uint8_t eid, void*, void* msg, size_t len)
 {
     struct nvme_mi_msg_response_header header
     {};
-#ifdef HAVE_SMBUS_MCTP
     int inFd = mctp_smbus_get_in_fd(nvmeMCTP::smbus);
     int rootBus = nvmeMCTP::getRootBus(inFd);
 
@@ -389,7 +380,6 @@ void rxMessage(uint8_t eid, void*, void* msg, size_t len)
         return;
     }
     std::shared_ptr<NVMeContext>& self = findMap->second;
-#endif
     if (msg == nullptr)
     {
         std::cerr << "Bad message received\n";
@@ -480,7 +470,7 @@ void rxMessage(uint8_t eid, void*, void* msg, size_t len)
 
     self->mctpResponseTimer.cancel();
 }
-#endif
+
 
 NVMeMCTPContext::NVMeMCTPContext(boost::asio::io_service& io/*, int rootBus*/) :
     scanTimer(io), nvmeSlaveSocket(io), mctpResponseTimer(io)
