@@ -30,20 +30,15 @@ class NVMeSensor : public Sensor
     void checkThresholds(void) override;
 };
 
-//#ifdef HAVE_LIBMCTP_SMBUS
-struct NVMeMCTPContext //: std::enable_shared_from_this<NVMeMCTPContext>
+struct NVMeMCTPContext : std::enable_shared_from_this<NVMeMCTPContext>
 {
-    NVMeMCTPContext(boost::asio::io_service& io/*, int rootBus*/);
     boost::asio::deadline_timer scanTimer;
 
     boost::asio::deadline_timer mctpResponseTimer;
     boost::asio::ip::tcp::socket nvmeSlaveSocket;
 
-    // link NVMeContext
-
     virtual ~NVMeMCTPContext();
 };
-//#endif
 
 struct NVMeSMBusContext //: std::enable_shared_from_this<NVMeSMBusContext>
 {

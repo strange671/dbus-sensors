@@ -20,10 +20,8 @@
 
 #include "NVMeDevice.hpp"
 
-#ifdef HAVE_LIBMCTP_SMBUS
 #include <crc32c.h>
 #include <libmctp-smbus.h>
-#endif
 
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/asio/ip/tcp.hpp>
@@ -179,9 +177,7 @@ int SmbusInit(int smbus_num)
 /*this function do not need when the fdbus been class */
 void SmbusClose(int smbus_num)
 {
-    //    int fd[MAX_I2C_BUS] = {0};
-
-    //    close(fd[smbus_num]);
+        close(busfd[smbus_num]);
 }
 
 int SendSmbusRWBlockCmdRAW(int smbus_num, int8_t device_addr, uint8_t* tx_data,
@@ -192,7 +188,7 @@ int SendSmbusRWBlockCmdRAW(int smbus_num, int8_t device_addr, uint8_t* tx_data,
 
     Rx_buf[0] = 1;
 
-//    int fd[smbus_num] = open_i2c_dev(smbus_num, filename, sizeof(filename), 0);
+    busfd[smbus_num] = open_i2c_dev(smbus_num, filename, sizeof(filename), 0);
 
     res = i2c_read_after_write(busfd[smbus_num], device_addr, tx_len,
                                (unsigned char*)tx_data, I2C_DATA_MAX,
@@ -471,7 +467,6 @@ void rxMessage(uint8_t eid, void*, void* msg, size_t len)
     self->mctpResponseTimer.cancel();
 }
 
-
 NVMeMCTPContext::NVMeMCTPContext(boost::asio::io_service& io/*, int rootBus*/) :
     scanTimer(io), nvmeSlaveSocket(io), mctpResponseTimer(io)
 {
@@ -481,10 +476,9 @@ NVMeMCTPContext::NVMeMCTPContext(boost::asio::io_service& io/*, int rootBus*/) :
 NVMeContext::NVMeContext(boost::asio::io_service& io, int rootBus) :
     rootBus(rootBus), NVMeMCTPContext::NVMeMCTPContext(io)//scanTimer(io), nvmeSlaveSocket(io), mctpResponseTimer(io)
 {
-//    nvmeSlaveSocket.assign(boost::asio::ip::tcp::v4(),
-//                           nvmeMCTP::getInFd(rootBus));
-} // this should be modify that separate NVMeContext as two part -> one of
-  // NVMeMCTPContext
+    nvmeSlaveSocket.assign(boost::asio::ip::tcp::v4(),
+                           nvmeMCTP::getInFd(rootBus));
+}  // NVMeMCTPContext
 
 void NVMeContext::pollNVMeDevices()
 {
@@ -502,7 +496,7 @@ void NVMeContext::pollNVMeDevices()
             }
             else
             {
-//                readAndProcessNVMeSensor(self);
+                readAndProcessNVMeSensor(self);
             }
 
             self->pollNVMeDevices();
@@ -514,7 +508,7 @@ void NVMeContext::close()
     scanTimer.cancel();
     mctpResponseTimer.cancel();
     nvmeSlaveSocket.cancel();
-//    nvmeMCTP::closeInFd(rootBus);
+    nvmeMCTP::closeInFd(rootBus);
 }
 
 NVMeContext::~NVMeContext()
