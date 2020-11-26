@@ -2,8 +2,9 @@
 
 #if HAVE_LIBMCTP_SMBUS
 #include <libmctp-smbus.h>
-#endif
 #include <libmctp.h>
+#endif
+#include <NVMeDevice.hpp>
 #include <boost/asio/deadline_timer.hpp>
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/ip/tcp.hpp>
@@ -77,14 +78,31 @@ int verifyIntegrity(uint8_t* msg, size_t len);
 
 namespace nvmeMCTP
 {
+//this is add for missing when building. 
 void init(void);
-#if HAVE_LIBMCTP_SMBUS
-//typedef void (*mctp_rx_fn)(uint8_t src_eid, void *data, void *msg, size_t len, bool tag_owner, uint8_t tag, void *msg_binding_private);
+typedef uint8_t mctp_eid_t;
+typedef void (*mctp_rx_fn)(uint8_t src_eid, void *data,void *msg, size_t len);
+struct mctp;
 
+#if HAVE_LIBMCTP_SMBUS
+struct mctp *mctp_init(void);
 int mctp_smbus_register_bus(struct mctp_binding_smbus *smbus, struct mctp *mctp, mctp_eid_t eid);
 int mctp_set_rx_all(struct mctp *mctp, mctp_rx_fn fn, void *data);
 struct mctp_binding_smbus *mctp_smbus_init(void);
+int mctp_smbus_open_in_bus(struct mctp_binding_smbus *smbus, int in_bus);
+int mctp_smbus_open_out_bus(struct mctp_binding_smbus *smbus, int out_bus);
+int mctp_smbus_set_in_fd(struct mctp_binding_smbus *smbus, int fd);
+int mctp_smbus_set_out_fd(struct mctp_binding_smbus *smbus, int fd);
+int mctp_smbus_get_out_fd(struct mctp_binding_smbus *smbus);
+int mctp_smbus_get_in_fd(struct mctp_binding_smbus *smbus);
+int mctp_smbus_read(struct mctp_binding_smbus *smbus);
+uint32_t crc32c(uint8_t *buf, int len);
+int nvmeMessageTransmit(struct mctp& mctp, struct nvme_mi_msg_request& req);
 #else
+struct mctp *mctp_init(void)
+{
+return NULL;
+}
 int mctp_smbus_register_bus(struct mctp_binding_smbus *smbus, struct mctp *mctp, mctp_eid_t eid)
 {
 return -ENOTSUP;
@@ -95,7 +113,43 @@ return -ENOTSUP;
 }
 struct mctp_binding_smbus *mctp_smbus_init(void)
 {
-return 0;
+return NULL;
+}
+int mctp_smbus_open_in_bus(struct mctp_binding_smbus *smbus, int in_bus)
+{
+return -ENOTSUP;
+}
+int mctp_smbus_open_out_bus(struct mctp_binding_smbus *smbus, int out_bus)
+{
+return -ENOTSUP;
+}
+int mctp_smbus_set_in_fd(struct mctp_binding_smbus *smbus, int fd)
+{
+return -ENOTSUP;
+}
+int mctp_smbus_set_out_fd(struct mctp_binding_smbus *smbus, int fd)
+{
+return -ENOTSUP;
+}
+int mctp_smbus_get_out_fd(struct mctp_binding_smbus *smbus)
+{
+return -ENOTSUP;
+}
+int mctp_smbus_get_in_fd(struct mctp_binding_smbus *smbus)
+{
+return -ENOTSUP;
+}
+int mctp_smbus_read(struct mctp_binding_smbus *smbus)
+{
+return -ENOTSUP;
+}
+uint32_t crc32c(uint8_t *buf, int len)
+{
+return -ENOTSUP;
+}
+static inline int nvmeMessageTransmit(struct mctp& mctp, struct nvme_mi_msg_request& req)
+{
+return -ENOTSUP;
 }
 #endif
 }

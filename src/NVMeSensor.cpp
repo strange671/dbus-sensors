@@ -190,8 +190,6 @@ int SendSmbusRWBlockCmdRAW(int smbus_num, int8_t device_addr, uint8_t* tx_data,
 
     Rx_buf[0] = 1;
 
-    busfd[smbus_num] = OpenI2cDev(smbus_num, filename, sizeof(filename), 0);
-
     res = i2c_read_after_write(busfd[smbus_num], device_addr, tx_len,
                                (unsigned char*)tx_data, I2C_DATA_MAX,
                                (unsigned char*)Rx_buf);
@@ -265,7 +263,7 @@ int nvmeMessageTransmit(mctp& mctp, nvme_mi_msg_request& req)
                     static_cast<uint8_t>(NVME_MI_MSG_REQUEST_HEADER_SIZE));
 
     msgSize = NVME_MI_MSG_REQUEST_HEADER_SIZE + req.request_data_len;
-    integrity = crc32c(messageBuf.data(),
+    integrity = nvmeMCTP::crc32c(messageBuf.data(),
                        NVME_MI_MSG_REQUEST_HEADER_SIZE + req.request_data_len);
     messageBuf[msgSize] = integrity & 0xff;
     messageBuf[msgSize + 1] = (integrity >> 8) & 0xff;
@@ -288,7 +286,7 @@ int verifyIntegrity(uint8_t* msg, size_t len)
     msgIntegrity = (msg[len - 4]) + (msg[len - 3] << 8) + (msg[len - 2] << 16) +
                    (msg[len - 1] << 24);
 
-    uint32_t calculateIntegrity = crc32c(msg, len - sizeof(msgIntegrity));
+    uint32_t calculateIntegrity = nvmeMCTP::crc32c(msg, len - sizeof(msgIntegrity));
     if (msgIntegrity != calculateIntegrity)
     {
         std::cerr << "CRC mismatch. Got=" << msgIntegrity
