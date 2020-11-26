@@ -30,8 +30,9 @@ class NVMeSensor : public Sensor
     void checkThresholds(void) override;
 };
 
-struct NVMeMCTPContext : std::enable_shared_from_this<NVMeMCTPContext>
+struct NVMeMCTPContext //: std::enable_shared_from_this<NVMeMCTPContext>
 {
+    NVMeMCTPContext(boost::asio::io_service& io);
     boost::asio::deadline_timer scanTimer;
 
     boost::asio::deadline_timer mctpResponseTimer;

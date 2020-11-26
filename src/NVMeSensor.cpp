@@ -20,8 +20,10 @@
 
 #include "NVMeDevice.hpp"
 
+#if HAVE_LIBMCTP_SMBUS
 #include <crc32c.h>
 #include <libmctp-smbus.h>
+#endif
 
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/asio/ip/tcp.hpp>
@@ -188,7 +190,7 @@ int SendSmbusRWBlockCmdRAW(int smbus_num, int8_t device_addr, uint8_t* tx_data,
 
     Rx_buf[0] = 1;
 
-    busfd[smbus_num] = open_i2c_dev(smbus_num, filename, sizeof(filename), 0);
+    busfd[smbus_num] = OpenI2cDev(smbus_num, filename, sizeof(filename), 0);
 
     res = i2c_read_after_write(busfd[smbus_num], device_addr, tx_len,
                                (unsigned char*)tx_data, I2C_DATA_MAX,
