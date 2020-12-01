@@ -35,6 +35,7 @@ set (CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
 
 option (YOCTO "Enable Building in Yocto" OFF)
 option (HUNTER_ENABLED "Enable hunter package pulling" OFF)
+option (MCTP_SMBUS_ENABLED "Enable libmctp-smbus link" OFF)
 
 option (DISABLE_ADC "Disable installing ADC sensor" OFF)
 option (DISABLE_CPU "Disable installing CPU sensor" OFF)
@@ -75,7 +76,12 @@ set (MCUTEMP_SRC_FILES src/Utils.cpp src/Thresholds.cpp)
 set (PSU_SRC_FILES src/Utils.cpp src/PSUSensor.cpp src/Thresholds.cpp
      src/PwmSensor.cpp src/PSUEvent.cpp)
 
-set (NVME_SRC_FILES src/Utils.cpp src/NVMeSensorMain.cpp src/NVMeSensor.cpp src/Thresholds.cpp)
+if (NOT MCTP_SMBUS_ENABLED)
+    set (NVME_SRC_FILES src/Utils.cpp src/NVMeSensorMain.cpp src/NVMeSensor.cpp src/Thresholds.cpp)
+endif()
+if (MCTP_SMBUS_ENABLED)
+    set (NVME_SRC_FILES src/Utils.cpp src/NVMeSensorMain.cpp src/NVMeMCTPSensor.cpp src/Thresholds.cpp)
+endif()
 
 set (EXTERNAL_PACKAGES Boost sdbusplus-project nlohmann-json)
 set (SENSOR_LINK_LIBS -lsystemd stdc++fs sdbusplus)
