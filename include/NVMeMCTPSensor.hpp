@@ -38,13 +38,7 @@ void init(void);
 }
 
 #if ENABLE_MCTP_SMBUS
-typedef uint8_t mctp_eid_t;
-typedef void (*mctp_rx_fn)(uint8_t src_eid, void *data,void *msg, size_t len);
-struct mctp;
-
-struct mctp *mctp_init(void);
 int mctp_smbus_register_bus(struct mctp_binding_smbus *smbus, struct mctp *mctp, mctp_eid_t eid);
-int mctp_set_rx_all(struct mctp *mctp, mctp_rx_fn fn, void *data);
 struct mctp_binding_smbus *mctp_smbus_init(void);
 int mctp_smbus_open_in_bus(struct mctp_binding_smbus *smbus, int in_bus);
 int mctp_smbus_open_out_bus(struct mctp_binding_smbus *smbus, int out_bus);
@@ -57,15 +51,7 @@ uint32_t crc32c(uint8_t *buf, int len);
 int nvmeMessageTransmit(struct mctp& mctp, struct nvme_mi_msg_request& req);
 int verifyIntegrity(uint8_t* msg, size_t len);
 #else
-struct mctp *mctp_init(void)
-{
-return NULL;
-}
 int mctp_smbus_register_bus(struct mctp_binding_smbus *smbus, struct mctp *mctp, mctp_eid_t eid)
-{
-return -ENOTSUP;
-}
-int mctp_set_rx_all(struct mctp *mctp, mctp_rx_fn fn, void *data)
 {
 return -ENOTSUP;
 }

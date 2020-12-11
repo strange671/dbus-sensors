@@ -124,6 +124,11 @@ int SendSmbusRWBlockCmdRAW(int smbus_num, int8_t device_addr, uint8_t* tx_data,
     return res;
 }
 
+void read()
+{
+
+}
+
 } // namespace nvmeSMBus
 void readResponse(const std::shared_ptr<NVMeContext>& nvmeDevice)
 {
@@ -134,11 +139,14 @@ void readResponse(const std::shared_ptr<NVMeContext>& nvmeDevice)
             {
                 return;
             }
+
+            nvmeSMBus::SmbusInit(nvmeDevice->rootBus);
 //            mctp_smbus_set_in_fd(nvmeMCTP::smbus,
 //                                 nvmeMCTP::getInFd(nvmeDevice->rootBus));
 
             // through libmctp this will invoke rxMessage
 //            mctp_smbus_read(nvmeMCTP::smbus);
+            nvmeSMBus::read(); //need to be defined this function
         });
 
 }

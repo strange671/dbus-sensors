@@ -211,7 +211,7 @@ target_link_libraries (psusensor ${SENSOR_LINK_LIBS})
 if (NOT DISABLE_NVME)
     add_executable (nvmesensor ${NVME_SRC_FILES})
     add_dependencies (nvmesensor sdbusplus-project)
-    target_link_libraries (nvmesensor  i2c ${SENSOR_LINK_LIBS})
+    target_link_libraries (nvmesensor liblibmctp i2c ${SENSOR_LINK_LIBS})
 endif()
 
 if (NOT YOCTO)
