@@ -14,11 +14,14 @@
 // limitations under the License.
 */
 
-#include "NVMeSensor.hpp"
+#include "NVMeMCTPSensor.hpp"
 
 #include "i2c.h"
 
 #include "NVMeDevice.hpp"
+
+#include <crc32c.h>
+#include <libmctp-smbus.h>
 
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/asio/ip/tcp.hpp>
@@ -31,100 +34,83 @@ static constexpr double minReading = 0;
 static constexpr bool DEBUG = false;
 
 void rxMessage(uint8_t eid, void* data, void* msg, size_t len);
-
-namespace nvmeSMBus
+namespace nvmeMCTP
 {
+struct mctp_binding_smbus* smbus = mctp_smbus_init();
+struct mctp* mctp = mctp_init();
+static boost::container::flat_map<int, int> inFds;
+static boost::container::flat_map<int, int> outFds;
 
-static boost::container::flat_map<int, int> busfd;
-int OpenI2cDev(int i2cbus, char* filename, size_t size, int quiet)
+int getInFd(int rootBus)
 {
-    int file;
-
-    snprintf(filename, size, "/dev/i2c/%d", i2cbus);
-    filename[size - 1] = '\0';
-    file = open(filename, O_RDWR);
-
-    if (file < 0 && (errno == ENOENT || errno == ENOTDIR))
+    auto findBus = inFds.find(rootBus);
+    if (findBus != inFds.end())
     {
-        sprintf(filename, "/dev/i2c-%d", i2cbus);
-        file = open(filename, O_RDWR);
+        return findBus->second;
     }
-
-    if (DEBUG)
+    int fd = mctp_smbus_open_in_bus(smbus, rootBus);
+    if (fd < 0)
     {
-        if (file < 0 && !quiet)
+        std::cerr << "Error opening IN Bus " << rootBus << "\n";
+    }
+    inFds[rootBus] = fd;
+    return fd;
+}
+
+int getOutFd(int bus)
+{
+    auto findBus = outFds.find(bus);
+    if (findBus != outFds.end())
+    {
+        return findBus->second;
+    }
+    int fd = mctp_smbus_open_out_bus(smbus, bus);
+    if (fd < 0)
+    {
+        std::cerr << "Error opening Out Bus " << bus << "\n";
+    }
+    outFds[bus] = fd;
+    return fd;
+}
+
+// we don't close the outFd as multiple sensors could be sharing the fd, we need
+// to close the inFd as it can only be used on 1 socket at a time
+void closeInFd(int rootBus)
+{
+    auto findFd = inFds.find(rootBus);
+    if (findFd == inFds.end())
+    {
+        return;
+    }
+    close(findFd->second);
+    inFds.erase(rootBus);
+}
+
+int getRootBus(int inFd)
+{
+    // we assume that we won't have too many FDs, so looping is OK
+    for (const auto [root, fd] : inFds)
+    {
+        if (fd == inFd)
         {
-            if (errno == ENOENT)
-            {
-                fprintf(stderr,
-                        "Error: Could not open file "
-                        "`/dev/i2c-%d' or `/dev/i2c/%d': %s\n",
-                        i2cbus, i2cbus, strerror(ENOENT));
-            }
-            else
-            {
-                fprintf(stderr,
-                        "Error: Could not open file "
-                        "`%s': %s\n",
-                        filename, strerror(errno));
-                if (errno == EACCES)
-                    fprintf(stderr, "Run as root?\n");
-            }
+            return root;
         }
     }
 
-    return file;
+    return -1;
 }
-
-int SmbusInit(int smbus_num)
+void init()
 {
-    int res = 0;
-    char filename[20];
-    //busfd[256] = {0}; // record:this need to be a class
-
-    busfd[smbus_num] = OpenI2cDev(smbus_num, filename, sizeof(filename), 0);
-    if (busfd[smbus_num] < 0)
+    if (mctp == nullptr || smbus == nullptr)
     {
-
-        return -1;
+        throw std::runtime_error("Unable to init mctp");
     }
-
-    res = busfd[smbus_num];
-
-    return res;
+    mctp_smbus_register_bus(smbus, nvmeMCTP::mctp, 0);
+    mctp_set_rx_all(mctp, rxMessage, nullptr);
 }
 
-/*this function do not need when the fdbus been class */
-void SmbusClose(int smbus_num)
-{
-        close(busfd[smbus_num]);
-}
+} // namespace nvmeMCTP
 
-int SendSmbusRWBlockCmdRAW(int smbus_num, int8_t device_addr, uint8_t* tx_data,
-                           uint8_t tx_len, uint8_t* rsp_data)
-{
-    int res, res_len;
-    unsigned char Rx_buf[256] = {0};
-
-    Rx_buf[0] = 1;
-
-    res = i2c_read_after_write(busfd[smbus_num], device_addr, tx_len,
-                               (unsigned char*)tx_data, I2C_DATA_MAX,
-                               (unsigned char*)Rx_buf);
-
-    if (res < 0)
-    {
-        fprintf(stderr, "Error: SendSmbusRWBlockCmdRAW failed\n");
-    }
-
-    res_len = Rx_buf[0] + 1;
-
-    memcpy(rsp_data, Rx_buf, res_len);
-
-    return res;
-}
-
-} // namespace nvmeSMBus
 void readResponse(const std::shared_ptr<NVMeContext>& nvmeDevice)
 {
     nvmeDevice->nvmeSlaveSocket.async_wait(
@@ -134,17 +120,14 @@ void readResponse(const std::shared_ptr<NVMeContext>& nvmeDevice)
             {
                 return;
             }
-//            mctp_smbus_set_in_fd(nvmeMCTP::smbus,
-//                                 nvmeMCTP::getInFd(nvmeDevice->rootBus));
+            mctp_smbus_set_in_fd(nvmeMCTP::smbus,
+                                 nvmeMCTP::getInFd(nvmeDevice->rootBus));
 
             // through libmctp this will invoke rxMessage
-//            mctp_smbus_read(nvmeMCTP::smbus);
+            mctp_smbus_read(nvmeMCTP::smbus);
         });
-
 }
 
-/* it's for nvme-mi use, block it and test build */
-/*
 int nvmeMessageTransmit(mctp& mctp, nvme_mi_msg_request& req)
 {
     std::array<uint8_t, NVME_MI_MSG_BUFFER_SIZE> messageBuf = {};
@@ -268,7 +251,7 @@ void readAndProcessNVMeSensor(const std::shared_ptr<NVMeContext>& nvmeDevice)
         std::cerr << "Error sending request message to NVMe device\n";
     }
 }
-*/
+
 static double getTemperatureReading(int8_t reading)
 {
 
@@ -282,9 +265,6 @@ static double getTemperatureReading(int8_t reading)
 
     return reading;
 }
-
-/* also bock this to test build*/
-/*
 void rxMessage(uint8_t eid, void*, void* msg, size_t len)
 {
     struct nvme_mi_msg_response_header header
@@ -390,12 +370,12 @@ void rxMessage(uint8_t eid, void*, void* msg, size_t len)
 
     self->mctpResponseTimer.cancel();
 }
-*/
+
 NVMeContext::NVMeContext(boost::asio::io_service& io, int rootBus) :
-    rootBus(rootBus) , scanTimer(io), nvmeSlaveSocket(io), mctpResponseTimer(io)
+    rootBus(rootBus), scanTimer(io), nvmeSlaveSocket(io), mctpResponseTimer(io)
 {
-//    nvmeSlaveSocket.assign(boost::asio::ip::tcp::v4(),
-//                           nvmeMCTP::getInFd(rootBus));
+    nvmeSlaveSocket.assign(boost::asio::ip::tcp::v4(),
+                           nvmeMCTP::getInFd(rootBus));
 }  // NVMeMCTPContext
 
 void NVMeContext::pollNVMeDevices()
@@ -414,7 +394,7 @@ void NVMeContext::pollNVMeDevices()
             }
             else
             {
-//                readAndProcessNVMeSensor(self);
+                readAndProcessNVMeSensor(self);
             }
 
             self->pollNVMeDevices();
@@ -423,19 +403,15 @@ void NVMeContext::pollNVMeDevices()
 
 void NVMeContext::close()
 {
-//    scanTimer.cancel();
-//    mctpResponseTimer.cancel();
-//    nvmeSlaveSocket.cancel();
-    nvmeSMBus::SmbusClose(rootBus);
+    scanTimer.cancel();
+    mctpResponseTimer.cancel();
+    nvmeSlaveSocket.cancel();
+    nvmeMCTP::closeInFd(rootBus);
 }
 
 NVMeContext::~NVMeContext()
 {
     close();
-}
-
-NVMeSMBusContext::~NVMeSMBusContext()
-{
 }
 
 NVMeSensor::NVMeSensor(sdbusplus::asio::object_server& objectServer,
